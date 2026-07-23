@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,9 +13,16 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Salary Management API", version="0.1.0")
 
+# Local dev origins are always allowed. The deployed frontend origin is read
+# from an env var (set on Railway) rather than hardcoded, so this file doesn't
+# need to change again once the Vercel URL is known.
+default_origins = ["http://localhost:3000", "http://localhost:5173"]
+extra_origin = os.getenv("FRONTEND_ORIGIN")
+allow_origins = default_origins + ([extra_origin] if extra_origin else [])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
