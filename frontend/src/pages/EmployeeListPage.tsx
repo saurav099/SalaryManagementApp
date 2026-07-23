@@ -5,7 +5,7 @@ import type { EmployeeListItem } from "../types";
 import { COUNTRIES, DEPARTMENTS, JOB_LEVELS } from "../types";
 import { formatMoney, titleCase } from "../utils/format";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 export function EmployeeListPage() {
   const navigate = useNavigate();
@@ -15,17 +15,19 @@ export function EmployeeListPage() {
   const [country, setCountry] = useState("");
   const [jobLevel, setJobLevel] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [jumpToPage, setJumpToPage] = useState("");
 
   const [items, setItems] = useState<EmployeeListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset to page 1 whenever a filter changes -- otherwise a user could be
-  // stranded on page 40 of a filtered set that only has 2 pages.
+  // Reset to page 1 whenever a filter or page size changes -- otherwise a
+  // user could be stranded on a page number that no longer exists.
   useEffect(() => {
     setPage(1);
-  }, [search, department, country, jobLevel]);
+  }, [search, department, country, jobLevel, pageSize]);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +36,7 @@ export function EmployeeListPage() {
 
     fetchEmployees({
       page,
-      page_size: PAGE_SIZE,
+      page_size: pageSize,
       search: search || undefined,
       department: department || undefined,
       country: country || undefined,
@@ -55,9 +57,21 @@ export function EmployeeListPage() {
     return () => {
       cancelled = true;
     };
-  }, [page, search, department, country, jobLevel]);
+  }, [page, pageSize, search, department, country, jobLevel]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  function goToPage(target: number) {
+    const clamped = Math.min(Math.max(1, target), totalPages);
+    setPage(clamped);
+    setJumpToPage("");
+  }
+
+  function handleJumpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const target = parseInt(jumpToPage, 10);
+    if (!Number.isNaN(target)) goToPage(target);
+  }
 
   return (
     <div>
@@ -148,20 +162,51 @@ export function EmployeeListPage() {
         </table>
       </div>
 
-      <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="text-[var(--color-ink-muted)]">
-          Page {page} of {totalPages}
-        </span>
-        <div className="flex gap-2">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div className="flex items-center gap-2 text-[var(--color-ink-muted)]">
+          <span>Page {page} of {totalPages}</span>
+          <span className="text-[var(--color-ink-faint)]">·</span>
+          <label className="flex items-center gap-1.5">
+            Rows per page
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="rounded-md border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-2 py-1 text-sm"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <form onSubmit={handleJumpSubmit} className="flex items-center gap-1.5">
+            <label htmlFor="jump-to-page" className="text-[var(--color-ink-muted)]">
+              Go to page
+            </label>
+            <input
+              id="jump-to-page"
+              type="number"
+              min={1}
+              max={totalPages}
+              value={jumpToPage}
+              onChange={(e) => setJumpToPage(e.target.value)}
+              placeholder={String(page)}
+              className="w-16 rounded-md border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-2 py-1 text-sm"
+            />
+          </form>
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => goToPage(page - 1)}
             disabled={page === 1}
             className="rounded-md border border-[var(--color-border-strong)] px-3 py-1.5 font-medium text-[var(--color-ink)] disabled:opacity-40"
           >
             Previous
           </button>
           <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => goToPage(page + 1)}
             disabled={page >= totalPages}
             className="rounded-md border border-[var(--color-border-strong)] px-3 py-1.5 font-medium text-[var(--color-ink)] disabled:opacity-40"
           >
