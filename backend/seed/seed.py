@@ -6,6 +6,7 @@ Run from the `backend/` directory:
     python -m seed.seed
 """
 import random
+import re
 import sys
 from datetime import date, timedelta
 from decimal import Decimal
@@ -100,7 +101,12 @@ def seed(total: int = TOTAL_EMPLOYEES):
     used_emails: set[str] = set()
 
     def unique_email(name: str) -> str:
-        base = name.lower().replace(" ", ".").replace("'", "")
+        # Faker names sometimes include titles/suffixes ("Mr. Brandon Lopez MD"),
+        # whose periods would otherwise produce invalid emails like
+        # "mr..brandon.lopez.md@..." -- strip everything but letters and spaces
+        # first, then collapse whitespace into single dots.
+        cleaned = re.sub(r"[^a-z\s]", "", name.lower())
+        base = re.sub(r"\s+", ".", cleaned.strip())
         email, n = f"{base}@acme-corp.com", 1
         while email in used_emails:
             email = f"{base}{n}@acme-corp.com"
